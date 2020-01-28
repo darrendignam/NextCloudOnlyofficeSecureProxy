@@ -16,5 +16,5 @@ You will need to create the folders for the volumes to map too too.
 
 On first run, the letsencrypt helper will generate all the SSL certs, and the DB and sub folders will be created. Head over to yoru domain and you will be prompted to create an admin user. And then the server will boot up.
 
-Next I add the Nexcloud apps for thumbnail generation, and for only office - setting the middlewar connection. I have seen a bug witht he latest onlyoffice middleware - so I manually install the older stable version, and then DON't update it!
+Next I add the Nexcloud apps for thumbnail generation, and for only office - setting the middlewar connection. I have seen a bug witht he latest onlyoffice middleware - so I manually install the older stable version, and then DON'T update it!
 I then bring the stack down and sudo vim the /config/config.php file to include the additional filetypes thumbnails i want to generate for word files and video files, so the UI is a bit nicer.
