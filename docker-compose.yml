@@ -1,0 +1,108 @@
+version: '3'
+
+services:
+  db:
+    image: mariadb
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    restart: always
+    volumes:
+      - nextcloud_storage/db:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=CHOOSE_ROOT_PASSWORD
+    env_file:
+      - db.env
+
+  redis:
+    image: redis:alpine
+    restart: always
+
+  onlyoffice-document-server:
+    # container_name: onlyoffice-document-server
+    image: onlyoffice/documentserver:latest
+    stdin_open: true
+    tty: true
+    restart: always
+    environment:
+      - VIRTUAL_HOST=onlyoffice.example.com
+      - LETSENCRYPT_HOST=onlyoffice.example.com
+      - LETSENCRYPT_EMAIL=you@example.com
+    networks:
+      - proxy-tier
+      - default
+    depends_on:
+      - app      
+    expose:
+      - '80'
+      - '443'
+    volumes:
+      - nextcloud_storage/onlyoffice/document_data:/var/www/onlyoffice/Data
+      - nextcloud_storage/onlyoffice/document_log:/var/log/onlyoffice
+
+  app:
+    #image: nextcloud:fpm-alpine
+    build: ./app
+    restart: always
+    volumes:
+      - nextcloud_storage/nextcloud:/var/www/html
+    environment:
+      - MYSQL_HOST=db
+      - REDIS_HOST=redis
+    env_file:
+      - db.env
+    depends_on:
+      - db
+      - redis
+
+  web:
+    build: ./web
+    restart: always
+    volumes:
+      - nextcloud_storage/nextcloud:/var/www/html:ro
+    environment:
+      - VIRTUAL_HOST=example.com
+      - LETSENCRYPT_HOST=example.com
+      - LETSENCRYPT_EMAIL=you@example.com
+    depends_on:
+      - app
+    networks:
+      - proxy-tier
+      - default
+
+  proxy:
+    build: ./proxy
+    restart: always
+    ports:
+      - 8080:80
+      - 4443:443
+    labels:
+      com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy: "true"
+    volumes:
+      - nextcloud_storage/certs:/etc/nginx/certs:ro
+      - nextcloud_storage/vhost.d:/etc/nginx/vhost.d
+      - nextcloud_storage/html:/usr/share/nginx/html
+      - docker.sock:/tmp/docker.sock:ro
+    networks:
+      - proxy-tier
+
+  letsencrypt-companion:
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    restart: always
+    volumes:
+      - nextcloud_storage/certs:/etc/nginx/certs
+      - nextcloud_storage/vhost.d:/etc/nginx/vhost.d
+      - nextcloud_storage/html:/usr/share/nginx/html
+      - docker.sock:/var/run/docker.sock:ro
+    networks:
+      - proxy-tier
+    depends_on:
+      - proxy
+
+volumes:
+  db:
+  nextcloud:
+  certs:
+  vhost.d:
+  html:
+
+networks:
+  proxy-tier:
